@@ -32,3 +32,5 @@ jobs:
       - name: Deploy
         id: deployment
         uses: actions/deploy-pages@v4
+
+# Pages enabled on 2026-08-17; this commit retriggers deployment.
