@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#111318">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>AI Context Hub</title>
+  <style>
+    :root{
+      color-scheme:dark;
+      --bg:#0b0c0f;--panel:#14161b;--panel2:#1b1e25;--line:#2a2e38;
+      --text:#f4f5f7;--muted:#9aa1ad;--accent:#f0f3f7;--ok:#81d4a6;--warn:#f0c674;
+    }
+    *{box-sizing:border-box}
+    html,body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Yu Gothic",sans-serif}
+    body{min-height:100vh;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}
+    .wrap{max-width:760px;margin:0 auto;padding:28px 18px 72px}
+    header{padding:18px 0 24px;border-bottom:1px solid var(--line)}
+    .eyebrow{font-size:12px;letter-spacing:.14em;color:var(--muted);font-weight:700}
+    h1{font-size:clamp(38px,9vw,70px);line-height:.95;letter-spacing:-.055em;margin:12px 0 14px}
+    .lead{margin:0;color:var(--muted);line-height:1.7}
+    .status{margin-top:16px;padding:12px 14px;border:1px solid var(--line);border-radius:14px;background:var(--panel);font-size:13px;color:var(--muted)}
+    .status strong{color:var(--text)}
+    .actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:18px 0 28px}
+    button,.fileLabel{appearance:none;border:1px solid var(--line);background:var(--panel);color:var(--text);border-radius:14px;padding:13px 15px;font:inherit;font-weight:700;cursor:pointer;text-align:center}
+    button:active,.fileLabel:active{transform:scale(.985)}
+    button.primary,.fileLabel.primary{background:var(--accent);color:#111318;border-color:var(--accent)}
+    button.danger{color:#ffb6b6}
+    input[type=file]{display:none}
+    .sectionTitle{display:flex;justify-content:space-between;align-items:end;margin:24px 0 10px}
+    .sectionTitle h2{font-size:14px;margin:0;letter-spacing:.04em}
+    .sectionTitle span{font-size:12px;color:var(--muted)}
+    .grid{display:grid;gap:10px}
+    .card{border:1px solid var(--line);background:var(--panel);border-radius:18px;padding:16px}
+    .cardTop{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
+    .card h3{margin:0;font-size:18px}
+    .tag{font-size:11px;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:4px 8px;white-space:nowrap}
+    .card p{color:var(--muted);font-size:13px;line-height:1.55;margin:8px 0 14px}
+    .copy{width:100%;background:var(--panel2)}
+    .copy.full{background:var(--accent);color:#111318;border-color:var(--accent)}
+    .copy:disabled{opacity:.35;cursor:not-allowed}
+    .privacy{margin-top:24px;padding:16px;border-radius:16px;border:1px solid var(--line);color:var(--muted);font-size:13px;line-height:1.7}
+    .privacy b{color:var(--ok)}
+    .tools{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+    .tools button{font-size:13px;padding:9px 12px}
+    .modal{position:fixed;inset:0;background:rgba(0,0,0,.72);display:none;align-items:flex-end;justify-content:center;z-index:50;padding:12px}
+    .modal.open{display:flex}
+    .sheet{width:min(760px,100%);max-height:88vh;overflow:auto;background:var(--panel);border:1px solid var(--line);border-radius:22px;padding:16px}
+    .sheetHeader{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
+    .sheetHeader h2{margin:0;font-size:18px}
+    .tabs{display:flex;gap:6px;overflow:auto;padding-bottom:8px}
+    .tabs button{padding:8px 10px;font-size:12px;white-space:nowrap}
+    .tabs button.active{background:var(--accent);color:#111318}
+    textarea{width:100%;min-height:46vh;resize:vertical;background:#0e1014;color:var(--text);border:1px solid var(--line);border-radius:14px;padding:14px;font:13px/1.65 ui-monospace,SFMono-Regular,Menlo,monospace}
+    .sheetActions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+    .toast{position:fixed;left:50%;bottom:24px;transform:translate(-50%,20px);background:#f4f5f7;color:#111318;border-radius:999px;padding:10px 16px;font-weight:800;font-size:13px;opacity:0;pointer-events:none;transition:.2s;z-index:80;white-space:nowrap}
+    .toast.show{opacity:1;transform:translate(-50%,0)}
+    @media(max-width:520px){.actions{grid-template-columns:1fr}.wrap{padding-left:14px;padding-right:14px}.sheetActions{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="eyebrow">LOCAL-FIRST PERSONAL TOOL</div>
+      <h1>AI Context<br>Hub</h1>
+      <p class="lead">別のAIへ渡すコンテキストを、長押し選択なしで一発コピー。データ本体はGitHubではなく、このブラウザ内に保存します。</p>
+      <div class="status" id="status">データ状態を確認中...</div>
+    </header>
+
+    <div class="actions">
+      <label class="fileLabel primary" for="importFile">初期データを読み込む</label>
+      <input id="importFile" type="file" accept="application/json,.json">
+      <button id="editBtn">内容を編集</button>
+    </div>
+
+    <div class="sectionTitle"><h2>COPY PRESETS</h2><span>1 TAP</span></div>
+    <div class="grid">
+      <article class="card"><div class="cardTop"><h3>⚡ QUICK</h3><span class="tag">最短</span></div><p>初対面AIに最低限の自分情報だけ渡す。</p><button class="copy" data-key="quick">QUICKをコピー</button></article>
+      <article class="card"><div class="cardTop"><h3>🧠 STANDARD</h3><span class="tag">普段用</span></div><p>プロフィール、AIの使い方、現在のテーマ、回答ルール。</p><button class="copy" data-key="standard">STANDARDをコピー</button></article>
+      <article class="card"><div class="cardTop"><h3>💼 BUSINESS</h3><span class="tag">事業</span></div><p>起業方針、案件、Qday、ロボニチなどを事業相談向けに整理。</p><button class="copy" data-key="business">BUSINESSをコピー</button></article>
+      <article class="card"><div class="cardTop"><h3>📚 STUDY</h3><span class="tag">受験</span></div><p>九大志望、科目状況、共通テスト数学、KYO-SUなど。</p><button class="copy" data-key="study">STUDYをコピー</button></article>
+      <article class="card"><div class="cardTop"><h3>📦 FULL</h3><span class="tag">詳細</span></div><p>別AIへの本格引っ越し用。現在の重要コンテキストをまとめて渡す。</p><button class="copy full" data-key="full">FULLをコピー</button></article>
+    </div>
+
+    <div class="privacy">
+      <b>GitHubには個人データを保存しません。</b><br>
+      読み込んだJSONの中身は、この端末・このブラウザの localStorage にだけ保存されます。公開リポジトリにはUIのコードしかありません。
+      <div class="tools">
+        <button id="exportBtn">バックアップを書き出す</button>
+        <button class="danger" id="clearBtn">この端末のデータを削除</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="modal" aria-hidden="true">
+    <div class="sheet">
+      <div class="sheetHeader"><h2>コンテキスト編集</h2><button id="closeBtn">閉じる</button></div>
+      <div class="tabs" id="tabs"></div>
+      <textarea id="editor" spellcheck="false"></textarea>
+      <div class="sheetActions"><button id="saveBtn" class="primary">保存</button><button id="copyEditorBtn">表示中をコピー</button></div>
+    </div>
+  </div>
+  <div class="toast" id="toast">コピーしました</div>
+
+<script>
+(() => {
+  const STORAGE_KEY = 'aiContextHub.v1';
+  const keys = ['quick','standard','business','study','full'];
+  const labels = {quick:'QUICK',standard:'STANDARD',business:'BUSINESS',study:'STUDY',full:'FULL'};
+  let state = loadState();
+  let editingKey = 'full';
+
+  const $ = (id) => document.getElementById(id);
+  const status = $('status');
+  const modal = $('modal');
+  const editor = $('editor');
+  const tabs = $('tabs');
+  const toast = $('toast');
+
+  function loadState(){
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      return raw ? JSON.parse(raw) : {version:'1.0',updatedAt:null,presets:{}};
+    } catch { return {version:'1.0',updatedAt:null,presets:{}}; }
+  }
+
+  function saveState(){
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    render();
+  }
+
+  function validPack(obj){
+    return obj && typeof obj === 'object' && obj.presets && typeof obj.presets === 'object' && keys.some(k => typeof obj.presets[k] === 'string');
+  }
+
+  function render(){
+    const count = keys.filter(k => state.presets && state.presets[k] && state.presets[k].trim()).length;
+    if(count){
+      status.innerHTML = `<strong>${count}/5 プリセット読み込み済み</strong>${state.updatedAt ? ` ・ 更新 ${escapeHtml(state.updatedAt)}` : ''}<br>この端末のブラウザ内に保存されています。`;
+    } else {
+      status.innerHTML = '<strong>まだデータ未設定</strong><br>「初期データを読み込む」から starter JSON を1回だけ入れてください。';
+    }
+    document.querySelectorAll('.copy').forEach(btn => {
+      const text = state.presets?.[btn.dataset.key] || '';
+      btn.disabled = !text.trim();
+    });
+    renderTabs();
+  }
+
+  function renderTabs(){
+    tabs.innerHTML = '';
+    keys.forEach(k => {
+      const b = document.createElement('button');
+      b.textContent = labels[k];
+      b.className = k === editingKey ? 'active' : '';
+      b.addEventListener('click', () => {
+        state.presets[editingKey] = editor.value;
+        editingKey = k;
+        editor.value = state.presets?.[k] || '';
+        renderTabs();
+      });
+      tabs.appendChild(b);
+    });
+  }
+
+  async function copyText(text, label='コピーしました'){
+    if(!text) return;
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      const ta = document.createElement('textarea');
+      ta.value = text; ta.style.position='fixed'; ta.style.opacity='0';
+      document.body.appendChild(ta); ta.focus(); ta.select(); document.execCommand('copy'); ta.remove();
+    }
+    showToast(label);
+  }
+
+  function showToast(msg){
+    toast.textContent = msg;
+    toast.classList.add('show');
+    clearTimeout(showToast.t);
+    showToast.t = setTimeout(() => toast.classList.remove('show'), 1500);
+  }
+
+  function escapeHtml(s=''){
+    return String(s).replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
+  }
+
+  document.querySelectorAll('.copy').forEach(btn => btn.addEventListener('click', () => {
+    copyText(state.presets?.[btn.dataset.key] || '', `${labels[btn.dataset.key]} をコピーしました`);
+  }));
+
+  $('importFile').addEventListener('change', async (e) => {
+    const file = e.target.files?.[0]; if(!file) return;
+    try {
+      const obj = JSON.parse(await file.text());
+      if(!validPack(obj)) throw new Error('invalid');
+      state = {version: obj.version || '1.0', updatedAt: obj.updatedAt || new Date().toISOString().slice(0,10), presets:{}};
+      keys.forEach(k => state.presets[k] = typeof obj.presets[k] === 'string' ? obj.presets[k] : '');
+      saveState();
+      showToast('初期データを読み込みました');
+    } catch {
+      alert('このJSONはAI Context Hub用の形式ではありません。');
+    }
+    e.target.value='';
+  });
+
+  $('editBtn').addEventListener('click', () => {
+    editingKey = 'full';
+    editor.value = state.presets?.[editingKey] || '';
+    renderTabs(); modal.classList.add('open'); modal.setAttribute('aria-hidden','false');
+  });
+  $('closeBtn').addEventListener('click', () => { modal.classList.remove('open'); modal.setAttribute('aria-hidden','true'); });
+  modal.addEventListener('click', e => { if(e.target === modal) $('closeBtn').click(); });
+  $('saveBtn').addEventListener('click', () => {
+    state.presets = state.presets || {};
+    state.presets[editingKey] = editor.value;
+    state.updatedAt = new Date().toISOString().slice(0,10);
+    saveState(); showToast('保存しました');
+  });
+  $('copyEditorBtn').addEventListener('click', () => copyText(editor.value));
+
+  $('exportBtn').addEventListener('click', () => {
+    if(!keys.some(k => state.presets?.[k])) return alert('まだ保存データがありません。');
+    const blob = new Blob([JSON.stringify(state,null,2)], {type:'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href=url; a.download=`ai-context-backup-${new Date().toISOString().slice(0,10)}.json`;
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+  });
+
+  $('clearBtn').addEventListener('click', () => {
+    if(!confirm('このブラウザに保存したコンテキストを削除します。GitHub側には元から保存されていません。')) return;
+    localStorage.removeItem(STORAGE_KEY); state = {version:'1.0',updatedAt:null,presets:{}}; render(); showToast('端末データを削除しました');
+  });
+
+  render();
+})();
+</script>
+</body>
+</html>
